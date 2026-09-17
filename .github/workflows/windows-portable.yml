@@ -1,0 +1,81 @@
+name: Windows portable
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Flutter project
+        shell: pwsh
+        run: |
+          if (Test-Path -Path "pubspec.yaml") {
+            Write-Host "Building from repository root"
+            New-Item -ItemType Directory -Force -Path work | Out-Null
+            robocopy . work /E /XD .git work ci-source build .dart_tool /NFL /NDL /NJH /NJS /nc /ns /np
+            if ($LastExitCode -ge 8) { throw "robocopy failed: $LastExitCode" }
+            exit 0
+          }
+          $parts = Get-ChildItem -Path "ci-source" -Filter "part-*.b64" -ErrorAction Stop | Sort-Object Name
+          if (-not $parts) { throw "ci-source/part-*.b64 missing and no pubspec.yaml at repo root" }
+          $b64 = -join ($parts | ForEach-Object { (Get-Content -Raw -Path $_.FullName).Trim() })
+          $zip = Join-Path $pwd "source.zip"
+          [IO.File]::WriteAllBytes($zip, [Convert]::FromBase64String($b64))
+          Expand-Archive -Force $zip -DestinationPath work
+          if (-not (Test-Path "work\pubspec.yaml")) { throw "Unpacked source has no pubspec.yaml" }
+          Write-Host "Unpacked $($parts.Count) source chunks"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.4"
+          cache: true
+
+      - name: Build Windows release
+        working-directory: work
+        shell: pwsh
+        run: |
+          flutter config --enable-windows-desktop --no-analytics
+          flutter pub get
+          flutter build windows --release
+
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $rel = "work\build\windows\x64\runner\Release"
+          if (-not (Test-Path "$rel\cf_prefer_refresh.exe")) { throw "Windows exe missing under $rel" }
+          $name = "CFPreferRefresh-1.0.0-windows-x64-portable"
+          New-Item -ItemType Directory -Force -Path $name | Out-Null
+          Copy-Item -Recurse -Force "$rel\*" "$name\"
+          $readme = "work\使用说明.txt"
+          if (-not (Test-Path $readme)) { $readme = "work\packaging\使用说明.txt" }
+          if (-not (Test-Path $readme)) { $readme = "packaging\使用说明.txt" }
+          Copy-Item -Force $readme "$name\使用说明.txt"
+          Compress-Archive -Force -Path $name -DestinationPath "$name.zip"
+          Copy-Item -Force "$name.zip" "$env:GITHUB_WORKSPACE\$name.zip"
+          Get-Item "$name.zip" | Format-List Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: CFPreferRefresh-1.0.0-windows-x64-portable.zip
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0-windows
+          name: CF Prefer Refresh 1.0.0 Windows portable
+          files: CFPreferRefresh-1.0.0-windows-x64-portable.zip
+          fail_on_unmatched_files: true
+          make_latest: true
+          body: |
+            Portable Windows x64. Extract the folder and double-click cf_prefer_refresh.exe.
+            Keep data\ and lib\ next to the exe. Clash keeps your Cloudflare edgetunnel URL.
+            Tokens are not bundled; paste them in Settings on first run.
