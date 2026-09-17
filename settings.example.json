@@ -1,0 +1,35 @@
+{
+  "role": "publisher",
+  "ipSourceUrls": [
+    "https://www.cloudflare.com/ips-v4"
+  ],
+  "extraIpText": "",
+  "maxCandidates": 256,
+  "concurrency": 32,
+  "timeoutMs": 1500,
+  "topN": 12,
+  "probePort": 443,
+  "probeTls": true,
+  "probeSni": "cloudflare.com",
+  "enableDownloadSpeed": true,
+  "publishTarget": "githubRepo",
+  "outputFormat": "addressesApi",
+  "githubOwner": "your-github-user",
+  "githubRepo": "cf-prefer-ip",
+  "githubBranch": "main",
+  "githubPath": "addressesapi.txt",
+  "githubCsvPath": "addressescsv.csv",
+  "githubToken": "",
+  "edgetunnelSubUrl": "https://edgetunnel-e5x.pages.dev/sub?token=replace-me",
+  "remarksPrefix": "Home",
+  "template": {
+    "protocol": "vless",
+    "hostSni": "edgetunnel-e5x.pages.dev",
+    "uuidOrPassword": "00000000-0000-4000-8000-000000000000",
+    "path": "/?ed=2560",
+    "port": 443,
+    "tls": true,
+    "fingerprint": "chrome",
+    "network": "ws"
+  }
+}
