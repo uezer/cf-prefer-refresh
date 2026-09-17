@@ -1,0 +1,25 @@
+优选刷新 · CF Prefer Refresh  安装说明（Android）
+==============================================
+
+文件：CFPreferRefresh-1.0.0-android.apk
+包名：app.cfprefer.cf_prefer_refresh
+界面：中文为主。
+
+安装
+  1. 用 USB / 网盘 / 浏览器把 APK 拷到手机。
+  2. 打开该文件。若系统提示「禁止未知来源」：
+     设置 → 安全 / 应用权限 → 允许此文件管理器或浏览器「安装未知应用」→ 返回再装。
+  3. 本包用调试签名打的 release（便于分发，不是 Play 商店签名）。
+     以后若换成正式签名，需要先卸载再装。
+  4. 允许联网。测速必须在手机当前 Wi‑Fi 或流量上进行。
+
+使用
+  1. 打开「优选刷新」。
+  2. 设置里填 Clash 一直用的 Cloudflare 订阅，例如：
+       https://edgetunnel-e5x.pages.dev/sub?token=【你自己的 token】
+     不要订阅本机地址。Token 只保存在手机本地。
+  3. 若这台手机负责更新优选列表：角色选「发布者」，配好 GitHub/Gist/上传 URL，点「刷新」。
+     其它设备选「仅订阅」，只在 Clash 里更新同一条 CF 订阅。
+  4. 测速结束后打开 Clash Meta / FlClash 等，更新原来的 edgetunnel 订阅。
+
+卸载：系统应用列表里移除「优选刷新」即可，设置文件会一并删除。

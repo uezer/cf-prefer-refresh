@@ -1,0 +1,29 @@
+优选刷新 · CF Prefer Refresh  使用说明（Windows）
+============================================
+
+这是便携版：解压整个文件夹，双击 cf_prefer_refresh.exe 即可。
+不要只拷走 exe，同目录的 data\ 和 lib\ 必须在一起。
+
+首次打开若出现 SmartScreen「无法验证发布者」：
+  更多信息 → 仍要运行。这是未做代码签名的正常提示，不是病毒扫描结果。
+
+一、Clash 订阅怎么填（重要）
+  Clash / mihomo 始终使用同一条 Cloudflare edgetunnel 订阅，例如：
+    https://edgetunnel-e5x.pages.dev/sub?token=【你自己的 token】
+  本程序不会、也不应改成 http://127.0.0.1/sub。
+  请在「设置」里粘贴你的完整订阅 URL。程序只保存本机，不会把 token 写进安装包。
+
+二、发布者：测速并更新优选列表
+  1. 打开应用，确认顶栏/首页徽章是「发布者」。
+  2. 设置 → 上传目标：填 GitHub 仓库（Token + 用户名 + 仓库 + 路径 addressesapi.txt）
+     或 Gist / 自定义 HTTP。Token 只存在这台电脑。
+  3. 把 edgetunnel 管理里的 ADDAPI / 优选订阅 指到该文件的 raw URL。
+  4. 回首页点「刷新 / Refresh」：从【此刻、当前网络】测 Cloudflare 入口 IP，再覆盖上传列表。
+  5. 到 Clash 里对原来的 CF 订阅点「更新订阅」。节点 server 应变为刚测出的 IP。
+
+「仅测速」只排名、不上传。「仅订阅」角色不会上传，避免手机和电脑互相覆盖。
+
+三、注意
+  家里 Wi‑Fi 和手机流量测出的入口 IP 不同。只让一台常用网络当发布者。
+  GitHub raw 可能有短暂缓存，上传后稍等再更新 Clash。
+  本工具用于个人在当前网络上测试入口延迟/可用性。请自行遵守 Cloudflare 条款与当地法律。
