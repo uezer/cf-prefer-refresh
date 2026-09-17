@@ -14,25 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare Flutter project
-        shell: pwsh
-        run: |
-          if (Test-Path -Path "pubspec.yaml") {
-            Write-Host "Building from repository root"
-            New-Item -ItemType Directory -Force -Path work | Out-Null
-            robocopy . work /E /XD .git work ci-source build .dart_tool /NFL /NDL /NJH /NJS /nc /ns /np
-            if ($LastExitCode -ge 8) { throw "robocopy failed: $LastExitCode" }
-            exit 0
-          }
-          $parts = Get-ChildItem -Path "ci-source" -Filter "part-*.b64" -ErrorAction Stop | Sort-Object Name
-          if (-not $parts) { throw "ci-source/part-*.b64 missing and no pubspec.yaml at repo root" }
-          $b64 = -join ($parts | ForEach-Object { (Get-Content -Raw -Path $_.FullName).Trim() })
-          $zip = Join-Path $pwd "source.zip"
-          [IO.File]::WriteAllBytes($zip, [Convert]::FromBase64String($b64))
-          Expand-Archive -Force $zip -DestinationPath work
-          if (-not (Test-Path "work\pubspec.yaml")) { throw "Unpacked source has no pubspec.yaml" }
-          Write-Host "Unpacked $($parts.Count) source chunks"
-
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -40,9 +21,9 @@ jobs:
           cache: true
 
       - name: Build Windows release
-        working-directory: work
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           flutter config --enable-windows-desktop --no-analytics
           flutter pub get
           flutter build windows --release
@@ -50,18 +31,44 @@ jobs:
       - name: Package portable zip
         shell: pwsh
         run: |
-          $rel = "work\build\windows\x64\runner\Release"
-          if (-not (Test-Path "$rel\cf_prefer_refresh.exe")) { throw "Windows exe missing under $rel" }
-          $name = "CFPreferRefresh-1.0.0-windows-x64-portable"
+          $ErrorActionPreference = 'Stop'
+          $exe = Get-ChildItem -Path . -Recurse -Filter 'cf_prefer_refresh.exe' -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '[\\/]Release[\\/]' } |
+            Select-Object -First 1
+          if (-not $exe) {
+            Write-Host '=== exe search ==='
+            Get-ChildItem -Path . -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue |
+              ForEach-Object { $_.FullName }
+            throw 'cf_prefer_refresh.exe not found after Windows build'
+          }
+          $rel = $exe.Directory.FullName
+          Write-Host "Packaging from $rel"
+          Get-ChildItem $rel | Format-Table Name, Length
+          $name = 'CFPreferRefresh-1.0.0-windows-x64-portable'
+          if (Test-Path $name) { Remove-Item -Recurse -Force $name }
           New-Item -ItemType Directory -Force -Path $name | Out-Null
-          Copy-Item -Recurse -Force "$rel\*" "$name\"
-          $readme = "work\使用说明.txt"
-          if (-not (Test-Path $readme)) { $readme = "work\packaging\使用说明.txt" }
-          if (-not (Test-Path $readme)) { $readme = "packaging\使用说明.txt" }
-          Copy-Item -Force $readme "$name\使用说明.txt"
-          Compress-Archive -Force -Path $name -DestinationPath "$name.zip"
-          Copy-Item -Force "$name.zip" "$env:GITHUB_WORKSPACE\$name.zip"
-          Get-Item "$name.zip" | Format-List Name, Length
+          Copy-Item -Recurse -Force (Join-Path $rel '*') (Join-Path (Get-Location) $name)
+          if (-not (Test-Path (Join-Path $name 'cf_prefer_refresh.exe'))) {
+            throw 'exe missing after copy'
+          }
+          # Avoid Chinese literals in this script (pwsh 5.1 + GHA encoding).
+          $usageName = [Text.Encoding]::UTF8.GetString([byte[]](0xE4,0xBD,0xBF,0xE7,0x94,0xA8,0xE8,0xAF,0xB4,0xE6,0x98,0x8E)) + '.txt'
+          $readmeSrc = $null
+          foreach ($c in @('packaging\windows-usage.txt', 'packaging\README-windows.txt')) {
+            if (Test-Path $c) { $readmeSrc = $c; break }
+          }
+          if (-not $readmeSrc) {
+            $readmeSrc = Get-ChildItem -Path packaging -File -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $readmeSrc) { throw 'packaging readme missing' }
+          Copy-Item -Force $readmeSrc (Join-Path $name $usageName)
+          Copy-Item -Force $readmeSrc (Join-Path $name 'README.txt')
+          if (Test-Path "$name.zip") { Remove-Item -Force "$name.zip" }
+          # tar.exe handles UTF-8 names; Compress-Archive on Windows PowerShell 5.1 often does not.
+          & tar.exe -a -cf "$name.zip" $name
+          if (-not (Test-Path "$name.zip")) { throw 'zip not created' }
+          Get-Item "$name.zip" | Format-List FullName, Length
 
       - uses: actions/upload-artifact@v4
         with:
